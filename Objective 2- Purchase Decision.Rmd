@@ -1,0 +1,411 @@
+---
+title: "Objective 2- Purchase Decision"
+author: "Manya"
+date: "2025-04-26"
+output: html_document
+---
+
+```{r Data & Packages}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggbeeswarm)
+library(scales)
+library(networkD3)
+library(knitr)
+library(psych)
+library(DescTools)
+opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+data=read_excel("C:\\Users\\Manya\\Desktop\\Project\\Analysis\\MAIN DATA(1).xlsx", sheet=1)
+df=data.frame(data)
+```
+
+```{r Factors and levels}
+#Gender
+gender=factor(df$X1.Gender)
+
+#Score
+score_intervals <- cut(df$SCORE, breaks = seq(0, 24, by = 8), include.lowest = TRUE)
+score_intervals1 = factor(score_intervals,levels =c("[0,8]","(8,16]","(16,24]"),ordered = TRUE)
+
+#Education
+education = factor(df$X3.Education, levels=c("Below 10th std (10 થી નીચે ધો.)","Secondary (10th std or equivalent) માધ્યમિક (10મું ધોરણ અથવા સમકક્ષ))","Higher secondary (12th std or equivalent) (ઉચ્ચતર માધ્યમિક (12મું ધોરણ અથવા સમકક્ષ))","Graduation (ગ્રેજ્યુએશન)","Post graduation (પોસ્ટ ગ્રેજ્યુએશન)","Doctoral degree (ડોક્ટરલ ડિગ્રી)"),ordered=TRUE)
+
+#Income
+income1 <- factor(df$X2.Income.per.annum, levels = c("NA","up to 2.5 lakh (2.5 લાખ સુધી)","over Rs.2.5L to Rs.5L( રૂ.2.5L થી રૂ.5L)","Over Rs.5L to Rs.10L( રૂ.5L થી રૂ.10L)","Above Rs.10L( રૂ.10L થી ઉપર)"),ordered=TRUE)
+
+#purchase
+purchase_decision=factor(df$Have.you.ever.purchased.a.general.insurance.policy.)
+
+#location
+location=factor(df$X4.Location) 
+
+#status of employment
+status=factor(df$X6.Status.of.Employment)
+
+#Age
+age = cut(df$X2.Age.., breaks = c(18,28,38,48,58,68,90), include.lowest = TRUE)
+age1 = factor(age,levels = c("[18,28]" ,"(28,38]", "(38,48]", "(48,58]", "(58,68]", "(68,90]"),ordered = TRUE)
+
+```
+```{r data input}
+df2 <- df %>% filter(Have.you.ever.purchased.a.general.insurance.policy.=="No (ના)")
+df1 <- df %>% filter(Have.you.ever.purchased.a.general.insurance.policy.=="Yes (હા)")
+
+replacements1 <- c(
+  "Individual Health Insurance Plan \\(.*?\\)" = "Individual Plan",
+  "Family Floater Health Insurance Plan \\(.*?\\)" = "Family Floater Plan",
+  "Senior Citizen Health Insurance Plan \\(.*?\\)" = "Senior Citizen Plan",
+  "Critical Illness Insurance Plan \\(.*?\\)" = "Critical Illness Plan"
+)
+
+# Apply replacements using str_replace_all
+df <- df %>%
+  mutate(
+    What.kind.of.Health.insurance.have.you.bought. = ifelse(
+      is.na(What.kind.of.Health.insurance.have.you.bought.),
+      NA,
+      str_replace_all(What.kind.of.Health.insurance.have.you.bought., replacements1)
+    )
+  )
+
+replacements2 <- c(
+  "Given by the car company at the time of purchase \\(.*?\\)" = "Recieved at car purchasal",
+  "Bought Third-party insurance \\(.*?\\)" = "Third-Party Insurance"
+)
+
+# Apply replacements using str_replace_all
+df <- df %>%
+  mutate(
+    What.kind.of.motor.insurance.do.you.have. = ifelse(
+      is.na(What.kind.of.motor.insurance.do.you.have.),
+      NA,
+      str_replace_all(What.kind.of.motor.insurance.do.you.have., replacements2)
+    )
+  )
+```
+
+```{r}
+# Load libraries
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(networkD3)
+
+# Prepare Data ---------------------------------------------------------------
+
+# Filter for general insurance holders
+general_yes <- df %>% 
+  filter(Have.you.ever.purchased.a.general.insurance.policy. == "Yes (હા)")
+
+# Health Insurance subtypes
+health <- general_yes %>%
+  filter(Have.you.purchased.HEALTH.Insurance. == "Yes (હા)") %>%
+  select(What.kind.of.Health.insurance.have.you.bought.) %>%
+  separate_rows(What.kind.of.Health.insurance.have.you.bought., sep = ",") %>%
+  mutate(
+    Level1 = "General Insurance",
+    Level2 = "Health Insurance",
+    Level3 = trimws(What.kind.of.Health.insurance.have.you.bought.)
+  ) %>%
+  count(Level1, Level2, Level3)
+
+# Motor Insurance subtypes
+motor <- general_yes %>%
+  filter(Have.you.purchased.MOTOR.insurance. == "Yes (હા)") %>%
+  select(What.kind.of.motor.insurance.do.you.have.) %>%
+  separate_rows(What.kind.of.motor.insurance.do.you.have., sep = ",") %>%
+  mutate(
+    Level1 = "General Insurance",
+    Level2 = "Motor Insurance",
+    Level3 = trimws(What.kind.of.motor.insurance.do.you.have.)
+  ) %>%
+  count(Level1, Level2, Level3)
+
+# Home Insurance subtypes
+home <- general_yes %>%
+  filter(Have.you.purchased.HOME.insurance. == "Yes (હા)") %>%
+  select(What.kind.of.HOME.insurance.have.you.bought.) %>%
+  separate_rows(What.kind.of.HOME.insurance.have.you.bought., sep = ",") %>%
+  mutate(
+    Level1 = "General Insurance",
+    Level2 = "Home Insurance",
+    Level3 = trimws(What.kind.of.HOME.insurance.have.you.bought.)
+  ) %>%
+  count(Level1, Level2, Level3)
+
+# Combine all
+alluvial_data <- bind_rows(health, motor, home)
+
+# Build Links ---------------------------------------------------------------
+
+# Level 1 to Level 2
+links_1_2 <- alluvial_data %>%
+  group_by(Level1, Level2) %>%
+  summarise(value = sum(n), .groups = "drop") %>%
+  rename(source = Level1, target = Level2)
+
+# Level 2 to Level 3
+links_2_3 <- alluvial_data %>%
+  group_by(Level2, Level3) %>%
+  summarise(value = sum(n), .groups = "drop") %>%
+  rename(source = Level2, target = Level3)
+
+# Combine links
+links <- bind_rows(links_1_2, links_2_3)
+
+# Create node list
+nodes <- data.frame(name = unique(c(links$source, links$target)))
+
+# Create IDs
+links <- links %>%
+  mutate(
+    source = match(source, nodes$name) - 1,
+    target = match(target, nodes$name) - 1
+  )
+
+# Assign manual x (levels) --------------------------------------------------
+
+nodes$x <- ifelse(
+  nodes$name == "General Insurance", 0,
+  ifelse(nodes$name %in% unique(alluvial_data$Level2), 0.4, 1)
+)
+
+# Assign color group ---------------------------------------------------------
+
+nodes$group <- case_when(
+  nodes$name == "Health Insurance" | nodes$name %in% health$Level3 ~ "Health",
+  nodes$name == "Motor Insurance" | nodes$name %in% motor$Level3 ~ "Motor",
+  nodes$name == "Home Insurance" | nodes$name %in% home$Level3 ~ "Home",
+  nodes$name == "General Insurance" ~ "General",
+  TRUE ~ "Other"
+)
+
+# Sankey Plot ---------------------------------------------------------------
+
+color_scale <- 'd3.scaleOrdinal()
+  .domain(["General", "Health", "Motor", "Home", "Other"])
+  .range(["#636EFA", "#00CC96", "#EF553B", "#AB63FA", "#B6E880"])'
+
+sankeyNetwork(
+  Links = links,
+  Nodes = nodes,
+  Source = "source",
+  Target = "target",
+  Value = "value",
+  NodeID = "name",
+  NodeGroup = "group",
+  colourScale = color_scale,
+  sinksRight = FALSE,
+  fontSize = 12,
+  nodeWidth = 30,
+  iterations = 0,
+  nodePadding = 20
+) %>% 
+  htmlwidgets::onRender("
+    function(el, x) {
+      // Force manual node positioning
+      var nodes = x.nodes;
+      nodes.forEach(function(d, i) {
+        d.x = x.nodes[i].x * (el.offsetWidth - 100);
+      });
+    }
+  ")
+
+```
+```{r Venn Diagram (without percentage)}
+library(readxl)
+library(VennDiagram)
+library(dplyr)
+  
+  # Rename for clarity
+  colnames(df)[c(32, 35, 38)] <- c("Have_Health", "Have_Motor", "Have_Home")
+  
+  # Create logical vectors
+  health <- df$Have_Health == "Yes (હા)"
+  motor  <- df$Have_Motor  == "Yes (હા)"
+  home   <- df$Have_Home   == "Yes (હા)"
+  
+  # Replace NA with FALSE
+  health[is.na(health)] <- FALSE
+  motor[is.na(motor)] <- FALSE
+  home[is.na(home)] <- FALSE
+  
+  
+  # Create a list
+  venn_list <- list(
+    Health = which(health),
+    Motor = which(motor),
+    Home = which(home)
+  )
+
+  # Plot the Venn Diagram
+  venn.plot <- venn.diagram(
+    x = venn_list,
+    filename = NULL,  # plot in RStudio Viewer
+    category.names = c("Health", "Motor", "Home"),
+    output = TRUE,
+    lwd = 2,
+    fill = c("#66c2a5", "#fc8d62", "#8da0cb"), # Your soft pastel colors
+    alpha = 0.6,
+    cex = 2,           # Font size inside circles
+    cat.cex = 2,       # Font size of category names
+    cat.col = "black", # Category text color
+    cat.pos = c(-30, 30, 180),  # <<<< This is KEY: positions
+    cat.dist = c(0.1, 0.1, 0.1), # Distance of labels
+    rotation.degree = 0,      # No rotation
+    euler.d = FALSE, 
+    scaled = FALSE
+  )
+  
+  # Set background color
+  grid.newpage()
+  grid.rect(gp = gpar(fill = "white", col = NA))  # Purple background
+  grid.draw(venn.plot)
+  
+  # Save it if you want
+  png("general_insurance_venn_final.png", width = 800, height = 800)
+  grid.newpage()
+  grid.rect(gp = gpar(fill = "white", col = NA))
+  grid.draw(venn.plot)
+  dev.off()
+```
+```{r Purchase Decision and Gender}
+t1=table(gender,purchase_decision)
+t1
+fisher.test(t1) #Association between Purchase Decision and gender.
+library(psych)
+Yule(t1)
+
+(62*(137)-52*(80))/(62*(137)+52*(80))
+```
+
+```{r Test which gender is more likely}
+rowSums(t1)
+t1[,2]
+prop.test(t1[,2],rowSums(t1), alternative="less") #Males are more likely to purchase a general insurance policy.
+```
+
+
+
+```{r Purchase Decision and location}
+t2=table(location,purchase_decision)
+t2
+fisher.test(t2) #No association between Purchase Decision and Location.
+```
+
+```{r Purchase Decision and Employment status}
+t5=table(status,purchase_decision)
+t5
+fisher.test(t5) #Association between Purchase Decision and Employment Status.
+Yule(t5)
+
+(56*157-86*32)/(56*157+86*32)
+```
+
+```{r Test which employ status is more likely.}
+prop.test(t5[,2],rowSums(t5), alternative="greater") #Employed people are more likely to purchase a general insurance policy.
+```
+
+```{r Purchase Decision and Education}
+t3=table(education,purchase_decision)
+t3
+
+t3_1 <- rbind(t3[1:4,],"Post graduation & Above"=t3[5,]+t3[6,])
+t3_1
+chisq.test(t3_1) #No Association between Education and Purchase Decision.
+```
+
+```{r Purchase Decision vs age}
+t4 <- table(age1,purchase_decision)
+t4
+
+t4_1 <- rbind(t4[1:3,],"(48,90]"=t4[4,]+t4[5,]+t4[6,])
+chisq.test(t4_1)
+t4_1
+CramerV(t4_1)
+```
+
+
+
+```{r Proportion test for age groups}
+rowSums(t4)
+t4[,2]
+yesvstotal<- cbind(t4[,2],rowSums(t4))
+colnames(yesvstotal)<- c("Purchased","Total") 
+yesvstotal #since, the frequency of yes purchased in age group (68,90] less than 5, we merge it with the age group of (58,68].
+
+#clubbing of last two age group
+merged_row <- t4[5,] + t4[6,]
+t4_new <- rbind(t4[1:4,],"(58,90]"=merged_row)
+yesvstotal1<- cbind(t4_new[,2],rowSums(t4_new))
+colnames(yesvstotal1)<- c("Purchased","Total") 
+yesvstotal1
+
+prop.test(t4_new[,2],rowSums(t4_new)) #At least one proportion is different.
+```
+```{r Purchase descision with Age}
+tb2 <- table(age1,purchase_decision)
+set.seed(15)
+chi2 <- chisq.test(tb2,simulate.p.value = TRUE,B=1000)
+
+tb2
+
+observed2 <- tb2
+expected2 <- chi2$expected
+residuals2 <- chi2$stdres
+
+combined_table_2 <- data.frame(
+  Group = rep(rownames(tb2), times = ncol(tb2)),
+  Outcome = rep(colnames(tb2), each = nrow(tb2)),
+  Observed = as.vector(observed2),
+  Expected = round(as.vector(expected2), 2),
+  Std_Residual = round(as.vector(residuals2), 2)
+)
+
+combined_table_2
+```
+
+```{r Income and Purchase Decision}
+t6=table(income1,purchase_decision)
+t6
+
+t6_1 <- rbind(t6[1:3,],"Over 5L"=t6[4,]+t6[5,])
+chisq.test(t6_1) #Association between Income and Purchase Decision.
+t6_1
+CramerV(t6_1)
+```
+
+```{r Proportion test for Income groups}
+rowSums(t6)
+t6[,2]
+yesvstotal_2<- cbind(t6[,2],rowSums(t6))
+yesvstotal_2
+
+prop.test(t6[,2],rowSums(t6)) #At least one proportion is different.
+```
+```{r Purchase descision with Income}
+tb1 <- table(income1,purchase_decision)
+set.seed(15)
+chi1 <- chisq.test(tb1,simulate.p.value = TRUE,B=1000)
+
+tb1
+
+observed <- tb1
+expected <- chi1$expected
+residuals <- chi1$stdres
+
+combined_table_1 <- data.frame(
+  Group = rep(rownames(tb1), times = ncol(tb1)),
+  Outcome = rep(colnames(tb1), each = nrow(tb1)),
+  Observed = as.vector(observed),
+  Expected = round(as.vector(expected), 2),
+  Std_Residual = round(as.vector(residuals), 2)
+)
+
+combined_table_1
+```
+
+

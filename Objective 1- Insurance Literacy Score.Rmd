@@ -1,0 +1,165 @@
+---
+title: "Objective 1- Literacy Score"
+author: "Manya"
+date: "2025-04-26"
+output: html_document
+---
+
+```{r Data & Packages}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggbeeswarm)
+library(DescTools)
+library(clinfun)
+library(MESS)
+data=read_excel("C:\\Users\\Manya\\Desktop\\Project\\Analysis\\MAIN DATA(1).xlsx", sheet=1)
+df=data.frame(data)
+```
+
+```{r Factors and levels}
+#Gender
+gender=factor(df$X1.Gender)
+
+#Score
+score_intervals <- cut(df$SCORE, breaks = seq(0, 24, by = 8), include.lowest = TRUE)
+score_intervals1 = factor(score_intervals,levels =c("[0,8]","(8,16]","(16,24]"),ordered = TRUE)
+
+#Education
+education = factor(df$X3.Education, levels=c("Below 10th std (10 થી નીચે ધો.)","Secondary (10th std or equivalent) માધ્યમિક (10મું ધોરણ અથવા સમકક્ષ))","Higher secondary (12th std or equivalent) (ઉચ્ચતર માધ્યમિક (12મું ધોરણ અથવા સમકક્ષ))","Graduation (ગ્રેજ્યુએશન)","Post graduation (પોસ્ટ ગ્રેજ્યુએશન)","Doctoral degree (ડોક્ટરલ ડિગ્રી)"),ordered=TRUE)
+
+#Income
+income1 <- factor(df$X2.Income.per.annum, levels = c("NA","up to 2.5 lakh (2.5 લાખ સુધી)","over Rs.2.5L to Rs.5L( રૂ.2.5L થી રૂ.5L)","Over Rs.5L to Rs.10L( રૂ.5L થી રૂ.10L)","Above Rs.10L( રૂ.10L થી ઉપર)"),ordered=TRUE)
+
+#purchase
+purchase_decision=factor(df$Have.you.ever.purchased.a.general.insurance.policy.)
+
+#location
+location=factor(df$X4.Location) 
+
+#status of employment
+status=factor(df$X6.Status.of.Employment) 
+
+#Age
+age = cut(df$X2.Age.., breaks = c(18,28,38,48,58,68,90), include.lowest = TRUE)
+age1 = factor(age,levels = c("[18,28]" ,"(28,38]", "(38,48]", "(48,58]", "(58,68]", "(68,90]"),ordered = TRUE)
+
+```
+
+```{r Score- Descriptive}
+life <- sum(grepl("Life Insurance",df$X1..Which.of.the.following.is.a.general.insurance., ignore.case = TRUE))
+life/331 #51.9% respondents still think life insurance is a part of general (non-life) insurance.
+
+motor <- sum(grepl("Motor Insurance",df$X3..Which.of.the.below.personal.general.insurance.are.compulsory.to.be.bought.according.to.government...ન.ચ.ન.મ..થ..કય..વ.યક.ત.ગત.સ.મ.ન.ય.વ.મ..સરક.ર.અન.સ.ર.ખર.દવ..ફરજ.ય.ત.છ..., ignore.case = TRUE))
+motor/331 #44.1% respondents correctly identified the compulsory type of General Insurance.
+
+time_min <- sum(grepl("At least 1 day in the hospital",df$X6..What.is.the.minimum.time.period.to.be.in.the.hospital.in.order.to.avail.Health.Insurance.benefits...આર.ગ.ય.વ.મ..લ.ભ..મ.ળવવ..મ.ટ..હ.સ.પ.ટલમ...રહ.વ.ન..લઘ.ત.તમ.સમયગ.ળ..ક.ટલ..છ..., ignore.case = TRUE))
+time_min/331 #45.92% respondents think that at least 1 day in the hospital in order to avail Health Insurance benefits.
+
+time_mmin <- sum(grepl("Less than a day in the hospital",df$X6..What.is.the.minimum.time.period.to.be.in.the.hospital.in.order.to.avail.Health.Insurance.benefits...આર.ગ.ય.વ.મ..લ.ભ..મ.ળવવ..મ.ટ..હ.સ.પ.ટલમ...રહ.વ.ન..લઘ.ત.તમ.સમયગ.ળ..ક.ટલ..છ..., ignore.case = TRUE))
+time_mmin/331 #Only 22.9% respondents correctly answered that the time period can be less than a day in the hospital in order to avail Health Insurance benefits.
+
+waiting <- sum(grepl("No, there is a",df$X7..Can.you.claim.your.health.insurance.policy.from.the.1st.day.of.availing.policy...શ...તમ..પ.લ.સ..મ.ળવવ.ન..1.દ.વસથ..તમ.ર..સ.વ.સ.થ.ય.વ.મ..પ.લ.સ.ન..દ.વ..કર..શક..છ..., ignore.case = TRUE))
+waiting/331 #70.69% correctly answered that there is a waiting period in the Health Insurance policy and you can not avail benefits from the 1st day itself of your purchase (Except accidental claims).
+```
+
+```{r R plots}
+hist(df$SCORE, breaks=seq(0, 24, by = 3), xlim=c(0,25), main= "Literacy SCORE",col="lightblue",xlab="Literacy Score")
+
+df2 <- df %>% filter(Have.you.ever.purchased.a.general.insurance.policy.=="No (ના)")
+df1 <- df %>% filter(Have.you.ever.purchased.a.general.insurance.policy.=="Yes (હા)")
+
+ggplot(df, aes(x = X2.Age.., y = SCORE)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "darkred") +
+  labs(title = "Relationship Between Age and Insurance Score",
+       x = "Age", y = "Score") #regression line has slope approximately 0, There is no meaningful relationship between Age and Score.
+
+#Income
+income1_1 <- factor(df1$X2.Income.per.annum, levels = c("NA","up to 2.5 lakh (2.5 લાખ સુધી)","over Rs.2.5L to Rs.5L( રૂ.2.5L થી રૂ.5L)","Over Rs.5L to Rs.10L( રૂ.5L થી રૂ.10L)","Above Rs.10L( રૂ.10L થી ઉપર)"),ordered=TRUE)
+
+#% spend
+perc_spend <- df1$What.percentage.of.your.income.spend.on.insurance.
+
+v_p=ggplot(df1, aes(x = income1_1, y = perc_spend)) +
+  geom_violin(fill = "lightgreen", color = "black") +
+  labs(title = "Distribution of Insurance Spend",
+       x = "Income Group", y = "% Spend on Insurance")+
+  scale_x_discrete(labels =c("NA","<2.5L","2.5L-5L","5L-10L",">10L"))
+ggsave("Violin plot.png", plot = v_p , width = 6, height = 4, dpi = 300)
+```
+
+```{r Median score for Gender test}
+score_female <- df$SCORE[df$X1.Gender=="Female"]
+score_male <- df$SCORE[df$X1.Gender=="Male"]
+wilcox.test(score_male,score_female) #Average mean of both the genders are equal.
+```
+
+```{r Score and Gender}
+t1=table(gender,score_intervals1)
+t1
+chisq.test(t1) #No association between Score and Gender.
+```
+
+```{r Median score for Location test}
+score_rural <- df$SCORE[df$X4.Location=="Rural (ગ્રામ્ય)"]
+score_urban<- df$SCORE[df$X4.Location=="Urban (શહેરી)"]
+wilcox.test(score_rural,score_urban) #Average median of both the locations is equal.
+```
+
+```{r Score and location}
+t2=table(location,score_intervals1)
+t2
+chisq.test(t2) #no association between Score and Location.
+```
+
+```{r Median score for Employment Status test}
+score_unemploy <- df$SCORE[df$X6.Status.of.Employment=="Unemployed (બેરોજગાર)"]
+score_employ <- df$SCORE[df$X6.Status.of.Employment=="Employed (નોકરી કરે છે)"]
+wilcox.test(score_unemploy,score_employ) #average median of both the locations is not equal.
+wilcox.test(score_unemploy,score_employ,alternative="less") #average median score of Employed people is more than Unemployed people.
+```
+
+```{r Score and Employment status}
+t5=table(status,score_intervals1)
+t5
+chisq.test(t5) #Association between score and Employment Status.
+CramerV(t5)
+```
+
+```{r Median score over education group.}
+kruskal.test(df$SCORE~df$X3.Education) #there is significant difference between mean score of each education group.
+
+jonckheere.test(df$SCORE,education,nperm=10000,alternative="increasing") #Median score increases as the education group increases.
+```
+
+```{r Score and Education}
+t3=table(education,score_intervals1)
+t3
+gkgamma(t3) #Association between Education and Score intervals. This means as the education level increases so does the literacy.
+```
+
+```{r Median score for various age groups}
+cor(df$SCORE,df$X2.Age..)
+kruskal.test(df$SCORE~df$X2.Age..) #there is no significant difference between median scores in the age groups.
+```
+
+```{r Score and age}
+t4 <- table(age1,score_intervals1)
+t4
+gkgamma(t4) #No association between Age and Score intervals.
+```
+
+```{r Median score over income groups.}
+kruskal.test(df$SCORE~df$X2.Income.per.annum) #there is significant difference between median score of each income group. 
+
+jonckheere.test(df$SCORE,income1,nperm=10000,alternative="increasing") #Median score increases as the income group increases.
+```
+
+```{r Income and score}
+t6=table(income1,score_intervals1)
+t6
+gkgamma(t6) #Association between Income and Score intervals. This means as the income level increases so does the literacy.
+```

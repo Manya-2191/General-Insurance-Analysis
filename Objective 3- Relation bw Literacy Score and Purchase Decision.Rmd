@@ -1,0 +1,80 @@
+---
+title: "Objective 3- Relationship b/w Literacy and Purchase Decision"
+author: "Manya"
+date: "2025-04-26"
+output: html_document
+---
+
+```{r Data & Packages}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(ggbeeswarm)
+library(scales)
+library(networkD3)
+library(knitr)
+library(psych)
+library(DescTools)
+opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+data=read_excel("C:\\Users\\Manya\\Desktop\\Project\\Analysis\\MAIN DATA(1).xlsx", sheet=1)
+df=data.frame(data)
+```
+
+```{r Factors and levels}
+#Gender
+gender=factor(df$X1.Gender)
+
+#Score
+score_intervals <- cut(df$SCORE, breaks = seq(0, 24, by = 8), include.lowest = TRUE)
+score_intervals1 = factor(score_intervals,levels =c("[0,8]","(8,16]","(16,24]"),ordered = TRUE)
+
+#Education
+education = factor(df$X3.Education, levels=c("Below 10th std (10 થી નીચે ધો.)","Secondary (10th std or equivalent) માધ્યમિક (10મું ધોરણ અથવા સમકક્ષ))","Higher secondary (12th std or equivalent) (ઉચ્ચતર માધ્યમિક (12મું ધોરણ અથવા સમકક્ષ))","Graduation (ગ્રેજ્યુએશન)","Post graduation (પોસ્ટ ગ્રેજ્યુએશન)","Doctoral degree (ડોક્ટરલ ડિગ્રી)"),ordered=TRUE)
+
+#Income
+income1 <- factor(df$X2.Income.per.annum, levels = c("NA","up to 2.5 lakh (2.5 લાખ સુધી)","over Rs.2.5L to Rs.5L( રૂ.2.5L થી રૂ.5L)","Over Rs.5L to Rs.10L( રૂ.5L થી રૂ.10L)","Above Rs.10L( રૂ.10L થી ઉપર)"),ordered=TRUE)
+
+#purchase
+purchase_decision=factor(df$Have.you.ever.purchased.a.general.insurance.policy.)
+
+#location
+location=factor(df$X4.Location) 
+
+#status of employment
+status=factor(df$X6.Status.of.Employment)
+
+#Age
+age = cut(df$X2.Age.., breaks = c(18,28,38,48,58,68,90), include.lowest = TRUE)
+age1 = factor(age,levels = c("[18,28]" ,"(28,38]", "(38,48]", "(48,58]", "(58,68]", "(68,90]"),ordered = TRUE)
+
+```
+
+
+```{r Mean score for People having G.I and people not having G.I.}
+score_having <- df$SCORE[df$Have.you.ever.purchased.a.general.insurance.policy.=="Yes (હા)"]
+score_nothaving<- df$SCORE[df$Have.you.ever.purchased.a.general.insurance.policy.=="No (ના)"]
+
+wilcox.test(score_nothaving,score_having) #average mean of both the categories is not equal.
+wilcox.test(score_nothaving,score_having,alternative="less") #average mean score of people having is more than people not having G.I..
+```
+
+```{r  Score and Purchase decision}
+t7=table(purchase_decision,score_intervals1)
+t7
+chisq.test(t7)
+```
+
+```{r Proportion test for Score groups}
+t8=table(score_intervals1,purchase_decision)
+t8
+rowSums(t8)
+t8[,2]
+yesvstotal_3<- cbind(t8[,2],rowSums(t8))
+yesvstotal_3
+
+prop.test(t8[,2],rowSums(t8)) #At least one proportion is different.
+pairwise.prop.test(t8[,2],rowSums(t8)) 
+pairwise.prop.test(t8[,2],rowSums(t8),alternative="greater") #As the score increases, the likeliness of buying also increases.
+```
